@@ -35,6 +35,10 @@ defmodule ChoreocalWeb.Router do
     ash_authentication_live_session :authenticated_routes,
       on_mount: [{ChoreocalWeb.LiveUserAuth, :live_user_required}] do
       live "/", CalendarLive
+      live "/studios", CatalogLive, :studios
+      live "/library", CatalogLive, :library
+      live "/classes/new", ClassLive, :new
+      live "/classes/:id", ClassLive, :edit
     end
   end
 end

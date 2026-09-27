@@ -25,11 +25,62 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/choreocal"
 import topbar from "../vendor/topbar"
 
+const UnsavedForms = {
+  mounted() {
+    this.dirty = new Set()
+    this.status = () => {
+      const status = this.el.querySelector("#unsaved-status")
+      if (status) status.textContent = this.dirty.size
+        ? "Unsaved changes — save each edited form before leaving."
+        : "Saved. Add, move and delete apply immediately."
+    }
+    this.input = e => {
+      const form = e.target.closest("form[phx-submit]")
+      if (form) { this.dirty.add(form.id); this.status() }
+    }
+    this.leave = e => {
+      if (this.dirty.size) { e.preventDefault(); e.returnValue = "" }
+    }
+    this.navigate = e => {
+      if (e.target.closest("a[href], [data-mutates]") && this.dirty.size) {
+        if (!window.confirm("You have unsaved changes. Continue without saving them?")) {
+          e.preventDefault(); e.stopImmediatePropagation()
+        } else { this.dirty.clear(); this.status() }
+      }
+    }
+    this.submit = e => {
+      if (e.target.id === "duplicate-form" && [...this.dirty].some(id => id !== e.target.id)) {
+        if (!window.confirm("Duplicate the saved plan and leave your unsaved changes behind?")) {
+          e.preventDefault(); e.stopImmediatePropagation()
+        }
+      }
+    }
+    this.el.addEventListener("input", this.input)
+    this.el.addEventListener("change", this.input)
+    this.el.addEventListener("click", this.navigate, true)
+    this.el.addEventListener("submit", this.submit, true)
+    window.addEventListener("beforeunload", this.leave)
+    this.handleEvent("form-saved", ({id}) => {
+      this.dirty.delete(id)
+      const form = id && document.getElementById(id)
+      if (form && (id === "catalog-form" || id.startsWith("add-exercise-") || id === "new-section-form" || id.startsWith("library-form-"))) form.reset()
+      this.status()
+    })
+  },
+  destroyed() {
+    this.el.removeEventListener("input", this.input)
+    this.el.removeEventListener("change", this.input)
+    this.el.removeEventListener("click", this.navigate, true)
+    this.el.removeEventListener("submit", this.submit, true)
+    window.removeEventListener("beforeunload", this.leave)
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, UnsavedForms},
 })
 
 // Show progress bar on live navigation and form submits
@@ -80,4 +131,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

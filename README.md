@@ -4,24 +4,38 @@ A private, online-first teaching planner built with Phoenix 1.8, LiveView, Ash,
 AshPostgres and AshAuthentication. Runtime: **Elixir 1.20.4-otp-29 / OTP 29.1.1**.
 Dependencies are locked in `mix.lock`.
 
-## Delivered foundation
+## Private teaching workspace
 
 - Invitation-only email/password access; no public registration route or strategy.
 - Encrypted, HttpOnly, SameSite=Lax session cookies (Secure in production), CSRF
   protection, stored/revocable auth tokens, and active LiveView logout notification.
 - Resend password setup/recovery. Links expire after 30 minutes; successful reset
   consumes the link and revokes existing sessions. Passwords require 12–72 characters.
-- Responsive authenticated calendar with month navigation, Today, date selection,
-  and truthful empty states. Calendar dates use America/Chicago, including DST.
+- Responsive calendar with real class entries, date selection, upcoming/past lists,
+  and direct editing. Today and new classes default to America/New_York; each class
+  appears on its own local date and displays its timezone.
+- Studio and categorized exercise-library CRUD; usage history and last-taught date.
+- Scheduled classes with Spotify name/link, freely named ordered sections, and ordered
+  exercise snapshots. Library edits/deletion never rewrite historical class cues.
+- Independent duplication preserves saved snapshots, local start time and elapsed
+  duration on the chosen date, including across DST. Ambiguous/nonexistent local
+  inputs are rejected visibly instead of silently shifting the appointment.
 - Node-local, bounded admission control: 15 sign-ins, 3 reset emails, and 10 password
   reset submissions per minute across this single-owner instance. Limits reset on
   process restart; deploy one instance. A busy bucket intentionally rejects everyone
   temporarily rather than trusting spoofable forwarding headers.
 
-Class/studio CRUD, ordered sections, reusable exercise library, duplication, and
-usage history are **not implemented yet**. The `Planning` domain is established;
-future `ClassExercise` records must retain historical name/cue snapshots independently
-of optional library links. No demo classes or public credentials are seeded.
+Save each edited form explicitly; add/move/delete operations save immediately. The
+browser warns before leaving unsaved forms. Classes and sections cascade-delete
+their nested rows; deleting a studio or library entry only clears its optional link.
+All Planning actions are actor-scoped, including supplied foreign keys.
+
+The calendar's **Import example plans** action imports the three owner-provided
+May 29 / July 11 / September 19, 2026 plans, two studios and 18 library exercises.
+Names, original shorthand, playlists and New York times remain editable. No Spotify
+URL or Yoga Room address is invented. A durable unique owner receipt and transaction
+prevent duplicate/partial imports, even after deleting an example. Import requires
+authentication and explicit confirmation; nothing is seeded or imported at deploy.
 
 ## Orb development
 
@@ -92,8 +106,8 @@ instructions, which permits recovery from mail-provider failure without creating
 second account. `OWNER_EMAIL` is a one-command input, not a required boot variable.
 
 Never send an owner password or reset URL through chat. Provider acceptance does not
-prove inbox delivery. No real email has been sent during implementation because an
-authorized recipient has not been supplied.
+prove inbox delivery. Tests use disposable local users and the Swoosh test adapter;
+never create fixture users or send test mail in production.
 
 ## Verification
 
@@ -102,4 +116,11 @@ Auth tests exercise anonymous HTTP/LiveView denial, invalid and valid login,
 captured-cookie replay after logout, live socket revocation, registration denial,
 non-enumerating reset responses, expired/reused/mismatched/short-password reset
 rejection, old-session invalidation, private bootstrap, CSRF and throttling.
-Calendar tests cover navigation and Chicago day boundaries in winter and summer.
+Planner tests cover CRUD forms, access policies, cross-owner link rejection, asymmetric
+section/exercise order, independent duplication, nil/non-nil historical cues, library
+deletion/history, local midnight boundaries, DST gaps/repeats and one-shot import.
+Run `mix ash.codegen --check` to detect resource/snapshot drift.
+
+The additive planner migration does not alter users or tokens. Take a fresh verified
+backup before deploying. Its `down` removes planner data: after real plans exist,
+roll back only the application image (the old image ignores these tables), not schema.
