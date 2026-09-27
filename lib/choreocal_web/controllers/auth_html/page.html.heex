@@ -1,0 +1,106 @@
+<Layouts.app flash={@flash}>
+  <div class="auth-shell">
+    <aside class="auth-story" aria-label="Choreocal introduction">
+      <a href={~p"/sign-in"} class="wordmark">choreocal<span class="brand-dot">.</span></a>
+      <div class="story-copy">
+        <span class="eyebrow">A little structure. A lot of possibility.</span>
+        <h1>More room<br />for <em>movement.</em></h1>
+        <p>Your classes, your ideas, your rhythm.<br />A quiet space to bring it all together.</p>
+      </div>
+      <div class="movement-art" aria-hidden="true">
+        <span class="art-ring ring-one"></span><span class="art-ring ring-two"></span><span class="art-ring ring-three"></span><span class="art-count">and, one.</span>
+      </div>
+      <p class="story-footer">MADE FOR THE WAY YOU TEACH</p>
+    </aside>
+    <main class="auth-main">
+      <div class="auth-card">
+        <span class="eyebrow">YOUR PRIVATE TEACHING SPACE</span>
+        <h2>
+          {case @mode do
+            :sign_in -> "Welcome back."
+            :request_reset -> "Find your way back."
+            :reset -> "A fresh start."
+          end}
+        </h2>
+        <p class="muted auth-description">
+          {case @mode do
+            :sign_in -> "A moment to plan. A little more room to dance."
+            :request_reset -> "We'll email you a secure link to reset your password."
+            :reset -> "Choose a new password for your Choreocal account."
+          end}
+        </p>
+        <div :if={@error} class="form-error" role="alert">{@error}</div>
+        <.form
+          for={@form}
+          id="auth-form"
+          action={
+            case @mode do
+              :sign_in -> ~p"/sign-in"
+              :request_reset -> ~p"/reset"
+              :reset -> ~p"/password-reset"
+            end
+          }
+        >
+          <.input
+            :if={@mode != :reset}
+            field={@form[:email]}
+            type="email"
+            label="Email address"
+            placeholder="you@example.com"
+            required
+            autocomplete="email"
+            class="auth-input"
+          />
+          <.input
+            :if={@mode != :request_reset}
+            field={@form[:password]}
+            type="password"
+            label={if @mode == :reset, do: "New password", else: "Password"}
+            required
+            minlength={if @mode == :reset, do: 12}
+            maxlength={72}
+            autocomplete={if @mode == :reset, do: "new-password", else: "current-password"}
+            class="auth-input"
+          />
+          <.input
+            :if={@mode == :reset}
+            field={@form[:password_confirmation]}
+            type="password"
+            label="Confirm new password"
+            required
+            minlength="12"
+            maxlength="72"
+            autocomplete="new-password"
+            class="auth-input"
+          />
+          <input
+            :if={@mode == :reset}
+            type="hidden"
+            name="user[reset_token]"
+            value={@form[:reset_token].value}
+          />
+          <p :if={@mode == :reset} class="muted password-hint">
+            Use 12–72 characters. A unique passphrase works beautifully.
+          </p>
+          <button id="auth-submit" type="submit" class="primary-button">{case @mode do
+            :sign_in -> "Sign in"
+            :request_reset -> "Send reset link"
+            :reset -> "Set password"
+          end}<.icon name="hero-arrow-right" class="size-4" /></button>
+        </.form>
+        <a class="auth-secondary" href={if @mode == :sign_in, do: ~p"/reset", else: ~p"/sign-in"}>{if @mode ==
+                                                                                                        :sign_in,
+                                                                                                      do:
+                                                                                                        "Forgot your password?",
+                                                                                                      else:
+                                                                                                        "Back to sign in"}</a>
+        <a :if={@mode == :reset} class="auth-secondary" href={~p"/reset"}>Request a new reset link</a>
+        <p class="private-note">
+          <.icon name="hero-lock-closed" class="size-3.5" />
+          An invitation-only space. Just for you.
+        </p>
+      </div>
+      <span class="auth-copyright">A thoughtful plan makes room for a beautiful class.</span>
+    </main>
+  </div>
+</Layouts.app>
