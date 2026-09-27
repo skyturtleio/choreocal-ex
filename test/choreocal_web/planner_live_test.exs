@@ -191,6 +191,24 @@ defmodule ChoreocalWeb.PlannerLiveTest do
     assert has_element?(calendar, "#selected-date", "Saturday, September 19")
   end
 
+  test "catalog filtering preserves unsaved name and cue drafts", %{conn: conn, opts: opts} do
+    exercise =
+      P.create_exercise!(%{name: "Saved chair", category: "Thighs", cues: "Saved cues"}, opts)
+
+    {:ok, view, _} = live(conn, ~p"/library")
+    view |> element("#entry-#{exercise.id} button", "Edit") |> render_click()
+
+    view
+    |> form("#catalog-form", record: %{name: "Draft chair", category: "Seat", cues: "Draft cues"})
+    |> render_change()
+
+    view |> form("#catalog-filter", search: "absent", category: "Thighs") |> render_change()
+    assert has_element?(view, "#record-name[value='Draft chair']")
+    assert has_element?(view, "#record-category[value='Seat']")
+    assert has_element?(view, "#record-cues", "Draft cues")
+    assert P.get_exercise!(exercise.id, opts).name == "Saved chair"
+  end
+
   test "all new screens require authentication", %{conn: _} do
     for path <- ["/studios", "/library", "/classes/new", "/classes/#{Ash.UUID.generate()}"] do
       assert redirected_to(get(build_conn(), path)) == "/sign-in"

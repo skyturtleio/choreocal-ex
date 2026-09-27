@@ -4,7 +4,7 @@ defmodule ChoreocalWeb.CatalogLive do
   alias Choreocal.Planning
 
   def mount(_, _, socket),
-    do: {:ok, assign(socket, editing: nil, search: "", category: "", error: nil)}
+    do: {:ok, assign(socket, editing: nil, draft: %{}, search: "", category: "", error: nil)}
 
   def handle_params(_, _, socket) do
     {:noreply,
@@ -33,11 +33,19 @@ defmodule ChoreocalWeb.CatalogLive do
        assign(socket, search: params["search"] || "", category: params["category"] || "")}
 
   def handle_event("edit", %{"id" => id}, socket) do
-    {:noreply,
-     assign(socket, editing: Enum.find(socket.assigns.rows, &(&1.id == id)), error: nil)}
+    row = Enum.find(socket.assigns.rows, &(&1.id == id))
+
+    draft =
+      Map.new([:name, :address, :category, :cues], &{to_string(&1), Map.get(row || %{}, &1)})
+
+    {:noreply, assign(socket, editing: row, draft: draft, error: nil)}
   end
 
-  def handle_event("cancel", _, socket), do: {:noreply, assign(socket, editing: nil, error: nil)}
+  def handle_event("draft", %{"record" => attrs}, socket),
+    do: {:noreply, assign(socket, draft: attrs)}
+
+  def handle_event("cancel", _, socket),
+    do: {:noreply, assign(socket, editing: nil, draft: %{}, error: nil)}
 
   def handle_event("save", %{"record" => attrs}, socket) do
     opts = [actor: socket.assigns.current_user]
@@ -54,12 +62,12 @@ defmodule ChoreocalWeb.CatalogLive do
       {:ok, _} ->
         {:noreply,
          socket
-         |> assign(editing: nil, error: nil)
+         |> assign(editing: nil, draft: %{}, error: nil)
          |> refresh()
          |> push_event("form-saved", %{id: "catalog-form"})}
 
       {:error, error} ->
-        {:noreply, assign(socket, error: error_message(error))}
+        {:noreply, assign(socket, draft: attrs, error: error_message(error))}
     end
   end
 
@@ -78,7 +86,7 @@ defmodule ChoreocalWeb.CatalogLive do
           :ok ->
             {:noreply,
              socket
-             |> assign(editing: nil)
+             |> assign(editing: nil, draft: %{})
              |> refresh()
              |> put_flash(:info, "Deleted. Saved class plans are unchanged.")}
 
@@ -106,13 +114,7 @@ defmodule ChoreocalWeb.CatalogLive do
     do: Enum.find(uses(row), &(DateTime.compare(&1.ends_at, DateTime.utc_now()) != :gt))
 
   def render(assigns) do
-    params =
-      Map.new(
-        [:name, :address, :category, :cues],
-        &{to_string(&1), Map.get(assigns.editing || %{}, &1)}
-      )
-
-    assigns = assign(assigns, form: to_form(params, as: :record))
+    assigns = assign(assigns, form: to_form(assigns.draft, as: :record))
 
     ~H"""
     <Layouts.app flash={@flash}>
@@ -137,6 +139,7 @@ defmodule ChoreocalWeb.CatalogLive do
               for={@form}
               id="catalog-form"
               phx-submit="save"
+              phx-change="draft"
             >
               <.input
                 field={@form[:name]}
