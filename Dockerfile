@@ -5,20 +5,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV MIX_ENV=prod
-RUN mix local.hex --force && mix local.rebar --force
+# The build host's resolver returned an unrelated TLS endpoint for builds.hex.pm.
+# Override DNS only for package fetches; keep TLS/package verification and runtime DNS unchanged.
+RUN printf '{resolv_conf,""}.\nclear_ns.\n{nameserver,{1,1,1,1}}.\n{lookup,[file,dns]}.\n' > /tmp/build-inetrc \
+    && ERL_INETRC=/tmp/build-inetrc mix local.hex --force \
+    && ERL_INETRC=/tmp/build-inetrc mix local.rebar --force
 
 COPY mix.exs mix.lock ./
 COPY config/config.exs config/prod.exs config/
-RUN mix deps.get --only prod && mix deps.compile
+RUN ERL_INETRC=/tmp/build-inetrc mix deps.get --only prod && mix deps.compile
 
 COPY priv priv
 COPY lib lib
 COPY assets assets
-RUN mix compile --warnings-as-errors && mix assets.setup && mix assets.deploy
+RUN mix compile --warnings-as-errors \
+    && ERL_INETRC=/tmp/build-inetrc mix assets.setup && mix assets.deploy
 
 COPY config/runtime.exs config/runtime.exs
 COPY rel rel
-RUN mix release
+RUN mix release && rm /tmp/build-inetrc
 
 FROM debian:bookworm-slim AS runner
 RUN apt-get update && apt-get install -y --no-install-recommends \
