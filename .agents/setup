@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+echo 'Checking system prerequisites'
+packages=(build-essential libssl-dev libncurses6 libtinfo6 postgresql unzip curl inotify-tools)
+missing=()
+for package in "${packages[@]}"; do
+  dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
+done
+if ((${#missing[@]})); then
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq "${missing[@]}"
+fi
+
+otp="$HOME/.local/otp/29.1.1"
+elixir="$HOME/.local/elixir/1.20.4"
+tmp=$(mktemp -d)
+started_pg=false
+cleanup() {
+  rm -rf "$tmp"
+  if $started_pg; then sudo pg_ctlcluster 15 main stop; fi
+}
+trap cleanup EXIT
+
+echo 'Installing exact OTP 29.1.1 and Elixir 1.20.4-otp-29'
+if [[ ! -x "$otp/bin/erl" ]]; then
+  curl -fsSL https://builds.hex.pm/builds/otp/amd64/ubuntu-22.04/OTP-29.1.1.tar.gz -o "$tmp/otp.tar.gz"
+  echo "92d4f05939c51fc2d9e1b2b7d35b233e800d51a0e540767335f1d8680ea9a924  $tmp/otp.tar.gz" | sha256sum -c -
+  mkdir -p "$otp"
+  tar xzf "$tmp/otp.tar.gz" --strip-components=1 -C "$otp"
+  (cd "$otp" && ./Install -sasl "$otp")
+fi
+if [[ ! -x "$elixir/bin/elixir" ]]; then
+  curl -fsSL https://builds.hex.pm/builds/elixir/v1.20.4-otp-29.zip -o "$tmp/elixir.zip"
+  echo "7863c546cda13fecc949e562e326042451dacf8fd8698a36783cb71eeb223b46  $tmp/elixir.zip" | sha256sum -c -
+  mkdir -p "$elixir"
+  unzip -q "$tmp/elixir.zip" -d "$elixir"
+fi
+for binary in "$otp"/bin/* "$elixir"/bin/*; do
+  [[ -f "$binary" ]] && sudo ln -sf "$binary" "/usr/local/bin/$(basename "$binary")"
+done
+elixir --version
+[[ "$(cat "$otp/releases/29/OTP_VERSION")" == '29.1.1' ]]
+mix local.hex --force --if-missing
+mix local.rebar --force --if-missing
+mix deps.get --check-locked
+
+echo 'Preparing disposable local PostgreSQL databases (no owner account seeded)'
+if ! pg_isready -q; then sudo pg_ctlcluster 15 main start; started_pg=true; fi
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='user'" | grep -q 1; then
+  sudo -u postgres createuser --createdb user
+fi
+mix ecto.create
+mix ecto.migrate
+mix assets.setup
+mix assets.build
+echo 'Ready. Run amp orb services ensure to start supervised services.'

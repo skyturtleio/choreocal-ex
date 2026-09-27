@@ -1,0 +1,12 @@
+services:
+  postgres:
+    command: sudo -u postgres /usr/lib/postgresql/15/bin/postgres -D /var/lib/postgresql/15/main -c config_file=/etc/postgresql/15/main/postgresql.conf
+    port: 5432
+  choreocal:
+    command: mix ecto.create && mix ecto.migrate && mix phx.server
+    port: 4000
+    portal: true
+    depends_on:
+      - postgres
+    title: Choreocal
+    description: Private class planner. No owner account is seeded; sign in requires private provisioning.

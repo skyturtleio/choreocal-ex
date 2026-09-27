@@ -31,7 +31,9 @@ defmodule ChoreocalWeb.AuthController do
 
   def update_password(conn, %{"user" => params}) do
     case auth(:reset, params) do
-      {:ok, _user} ->
+      {:ok, user} ->
+        ChoreocalWeb.LiveUserAuth.disconnect(user)
+
         conn
         |> clear_session(:choreocal)
         |> put_flash(:info, "Your password is set. Sign in to your teaching space.")
@@ -55,8 +57,12 @@ defmodule ChoreocalWeb.AuthController do
   def failure(conn, _activity, _reason), do: redirect(conn, to: ~p"/sign-in")
 
   def sign_out(conn, _) do
-    conn
-    |> clear_session(:choreocal)
+    signed_out = clear_session(conn, :choreocal)
+
+    if conn.assigns[:current_user],
+      do: ChoreocalWeb.LiveUserAuth.disconnect(conn.assigns.current_user)
+
+    signed_out
     |> configure_session(renew: true)
     |> redirect(to: ~p"/sign-in")
   end

@@ -1,5 +1,18 @@
 This is a web application written using the Phoenix web framework.
 
+## Choreocal contracts
+
+- Runtime is exactly Elixir `1.20.4-otp-29` and Erlang/OTP `29.1.1`. Never silently substitute versions.
+- This is an online-first, single-owner private planner. No public signup, seed password, guessed recipient, or auth bypass routes.
+- Use `.agents/setup` for orb dependencies and `amp orb services ensure` for supervised services. Never use production databases for tests.
+- Ash resources belong in domains. Read the dependency-provided `deps/ash/usage-rules.md`, `deps/ash_postgres/usage-rules.md`, and `deps/ash_authentication/usage-rules.md` before changing resource/auth code; they are installed by `mix deps.get`.
+- Pass actors for user-facing Ash actions; never disable authorization in web code. The private release bootstrap is the only intentional exception.
+- Generate Ash migrations with `mix ash.codegen <name>` and inspect both generated migrations and snapshots. Keep resource changes, snapshots and migrations together.
+- Authentication uses AshAuthentication strategies, stored/revocable tokens, encrypted cookies and CSRF-protected POST/DELETE forms. Test captured-cookie replay and existing LiveViews, not only browser-cookie deletion.
+- Do not log reset links, credentials, database URLs, email bodies or runtime secrets. Production reverse-proxy access logs must remain disabled for this app.
+- Future `Planning` resources: Studio, Class, ordered ClassSection, reusable categorized Exercise, ordered ClassExercise with name/cue snapshots and optional exercise link. Historical class content must survive library edits/deletion. Do not display fake class data or active controls for unfinished CRUD.
+- Run `mix precommit`; use browser rendering and inspect screenshots for desktop/narrow-width UI changes. No real owner email is available; delivery verification uses the Swoosh test adapter until an explicit recipient is provided.
+
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues

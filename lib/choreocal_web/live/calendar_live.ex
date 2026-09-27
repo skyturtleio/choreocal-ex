@@ -2,7 +2,7 @@ defmodule ChoreocalWeb.CalendarLive do
   use ChoreocalWeb, :live_view
 
   def mount(_, _, socket) do
-    today = Date.utc_today()
+    today = Choreocal.Planning.today()
 
     {:ok,
      assign(socket,
@@ -102,7 +102,7 @@ defmodule ChoreocalWeb.CalendarLive do
                   phx-click="select"
                   phx-value-date={day}
                   aria-label={Calendar.strftime(day, "%B %-d, %Y")}
-                  aria-pressed={day == @selected}
+                  aria-pressed={to_string(day == @selected)}
                   class={[
                     "calendar-day",
                     day.month != @month.month && "outside-month",

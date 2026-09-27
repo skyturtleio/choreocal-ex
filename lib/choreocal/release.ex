@@ -13,6 +13,9 @@ defmodule Choreocal.Release do
   end
 
   def provision_owner(email) when is_binary(email) do
+    # `eval` runs beside the deployed release, so never bind its HTTP port.
+    endpoint = Application.fetch_env!(@app, ChoreocalWeb.Endpoint)
+    Application.put_env(@app, ChoreocalWeb.Endpoint, Keyword.put(endpoint, :server, false))
     {:ok, _} = Application.ensure_all_started(@app)
     provision(email)
   end
@@ -35,22 +38,28 @@ defmodule Choreocal.Release do
             })
             |> Ash.create!(authorize?: false)
 
-            :ok
-
           [user] ->
             if String.downcase(to_string(user.email)) != String.downcase(email) do
               Choreocal.Repo.rollback(:owner_already_exists)
             end
 
-            :ok
+            user
         end
       end)
 
     case result do
-      {:ok, :ok} ->
-        Choreocal.Accounts.User
-        |> AshAuthentication.Info.strategy!(:password)
-        |> AshAuthentication.Strategy.action(:reset_request, %{email: email})
+      {:ok, user} ->
+        # Public reset requests deliberately hide delivery failures. A private
+        # provisioning command must instead report whether email was accepted.
+        with {:ok, token, _claims} <-
+               AshAuthentication.Jwt.token_for_user(
+                 user,
+                 %{"act" => "reset_password_with_token"},
+                 purpose: :reset_password_with_token,
+                 token_lifetime: {30, :minutes}
+               ) do
+          Choreocal.Accounts.User.Senders.SendPasswordResetEmail.send(user, token, [])
+        end
 
       {:error, reason} ->
         {:error, reason}

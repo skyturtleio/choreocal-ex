@@ -59,7 +59,7 @@ config :spark,
 config :choreocal,
   ecto_repos: [Choreocal.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [Choreocal.Accounts]
+  ash_domains: [Choreocal.Accounts, Choreocal.Planning]
 
 # Configure the endpoint
 config :choreocal, ChoreocalWeb.Endpoint,
@@ -115,6 +115,9 @@ config :logger, :default_formatter,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
+# Use the timezone database shipped with the locked dependency, not runtime downloads.
+config :tzdata, :autoupdate, :disabled
 
 # Suppress credentials and reset tokens in Phoenix parameter logs.
 config :phoenix, :filter_parameters, [

@@ -40,7 +40,10 @@ defmodule ChoreocalWeb.Endpoint do
   end
 
   plug Plug.RequestId
-  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+
+  plug Plug.Telemetry,
+    event_prefix: [:phoenix, :endpoint],
+    log: {__MODULE__, :request_log_level, []}
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
@@ -51,4 +54,7 @@ defmodule ChoreocalWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug ChoreocalWeb.Router
+
+  def request_log_level(%{path_info: ["password-reset" | _]}), do: false
+  def request_log_level(_), do: :info
 end

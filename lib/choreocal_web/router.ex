@@ -8,6 +8,7 @@ defmodule ChoreocalWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {ChoreocalWeb.Layouts, :root}
     plug :protect_from_forgery
+    plug Choreocal.AuthRateLimit
 
     plug :put_secure_browser_headers, %{
       "referrer-policy" => "no-referrer",

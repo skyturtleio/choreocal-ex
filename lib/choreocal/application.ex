@@ -10,6 +10,7 @@ defmodule Choreocal.Application do
     children = [
       ChoreocalWeb.Telemetry,
       Choreocal.Repo,
+      Choreocal.AuthRateLimit,
       {DNSCluster, query: Application.get_env(:choreocal, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Choreocal.PubSub},
       # Start a worker by calling: Choreocal.Worker.start_link(arg)
